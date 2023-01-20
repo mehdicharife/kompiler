@@ -3,7 +3,7 @@
 #include "string.h"
 
 #define KEYWORDS_NUMBER 3
-
+#define DOPERATORS_NUMBER 10
 
 typedef struct Token Token;
 typedef struct Lexeme Lexeme;
@@ -20,8 +20,8 @@ char separators[] = {'(',')', '[', ']', ',', ';'};
                     '=' 
 };*/
 
-char operators[] = {'+', '-', '*', '/', '%', '=', '!','&', '|', '^', '~'};
-
+char soperators[] = {'+', '-', '*', '/', '%', '=', '!','&', '|', '^', '~','<'};
+char* doperators[] = {"++", "--", "==", "+=", "-=", "<<", ">>", "<=", ">=", "!="};
 
 
 struct place {
@@ -115,9 +115,12 @@ int is_separator(char c) {
 
 
 int is_operator(char c) {
-    return is_partof(operators, c);
+    return is_partof(soperators, c);
 }
 
+int is_doperator(char* diquence) {
+    return belongs(doperators, DOPERATORS_NUMBER, diquence);
+}
 
 int is_keyword(char* sequence) {
     return belongs(keywords, KEYWORDS_NUMBER, sequence);
@@ -128,10 +131,15 @@ int is_keyword(char* sequence) {
 
 
 
+
+
+
+
+
+
 int fits_token_pattern(char* code, int start, int index) {
     if(is_alpha(code[start])) {
         return is_alpha(code[index]) || is_digit(code[index]);
-
     }
 
     if(is_digit(code[start])) {
@@ -143,7 +151,18 @@ int fits_token_pattern(char* code, int start, int index) {
     }
 
     if(code[start] == '\'') {
-        return (code[index-1] != '\'' || index == 1);
+        return (code[index - 1] != '\'' || index == 1);
+    }
+
+    if(is_operator(code[index])) {
+        char c = code[index + 1];
+        int goon = 0;
+        code[index + 1] = '\0';
+        if(is_doperator(code + start)) {
+            goon = 1;
+        }
+        code[index + 1] = c;
+        return goon;
     }
 
     return 0;
@@ -172,6 +191,7 @@ LexemeType get_read_lex_type(char* lexeme_content) {
     if(is_operator(lexeme_content[0])) {
         return operator;
     }
+
 }
 
 
@@ -259,7 +279,7 @@ int lex(char* code) {
 
 
 int main(int argc, char* argv[]) {
-    char* code = "int main(int argc) {\n    return 0;}";
+    char code[] = "int main(int argc) {\n    int k += 0;\nreturn 0;}";
 
     lex(code);
 
