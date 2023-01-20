@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "atomic": "c",
-        "*.tcc": "c",
-        "system_error": "c",
-        "functional": "c",
-        "new": "c"
-    }
-}
