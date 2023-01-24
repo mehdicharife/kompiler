@@ -4,7 +4,7 @@
 #include <stdarg.h>
 
 
-#define RULES_COUNT 4
+#define RULES_COUNT 5
 
 
 
@@ -66,7 +66,7 @@ int devolves_to_eps(Symbol* pS, Rule* grules) {
     int srules_count = set_symbol_rules(pS, grules, psrules);
 
     for(int i = 0; i < srules_count; i++) {
-        if(psrules[i]->prights[0]->label = 'o') { // # here denotes epsilon
+        if(psrules[i]->prights[0]->label == '#') { // # here denotes epsilon
             return 1;
         }
     }
@@ -84,11 +84,11 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
 
     for(int k = 0; k < srules_count; k++) {
         Symbol* pY = psrules[k]->prights[0];
-        printf("%c: %c\n", pS->label, pY->label);
+        //printf("%c: %c\n", pS->label, pY->label);
         if(pY->type == TERMINAL) {
             pfirsts[*pfirsts_count] = pY;
             ++*pfirsts_count;
-            printf("New FIrstt: %c\n", pfirsts[*pfirsts_count - 1]->label);
+            //printf("New FIrstt: %c, First count: %d\n", pfirsts[*pfirsts_count - 1]->label, *pfirsts_count);
             continue;
         }
 
@@ -107,7 +107,7 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
 
 
 int main(int argc, char* argv[]) {
-    Symbol S, E, K, a, eps, b;
+    Symbol S, E, K, a, eps, b, c;
     S.label = 'S';
     S.type = NONTERMINAL;
 
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
     K.label = 'K';
     K.type = NONTERMINAL;
 
-    eps.label = 'o';
+    eps.label = '#';
     eps.type = TERMINAL;
 
 
@@ -127,12 +127,16 @@ int main(int argc, char* argv[]) {
     b.label = 'b';
     b.type = TERMINAL;
 
-    Rule* grules = malloc(4*sizeof(Rule));
+    c.label = 'c';
+    c.type = TERMINAL;
+
+    Rule* grules = malloc(RULES_COUNT*sizeof(Rule));
 
     set_rule(&grules[0], &S, 2, &E, &K);
     set_rule(&grules[1], &E, 1, &a);
     set_rule(&grules[2], &E, 1, &eps);
     set_rule(&grules[3], &K, 1, &b);
+    set_rule(&grules[4], &K, 1, &c);
 
 
     Symbol** pfirsts = malloc(20*sizeof(Symbol*));
@@ -140,10 +144,11 @@ int main(int argc, char* argv[]) {
     pFIRSTS(&S, grules, pfirsts, &firsts_count);
 
 
-    printf("FIRSTS: %d\n", firsts_count);
+    //printf("FIRSTS: %d\n", firsts_count);
 
     for(int k = 0; k < firsts_count; k++) {
-        printf("%c\n", pfirsts[k]->label);
+    
+        printf("%d:  %c\n", k, pfirsts[k]->label);
     }
 
 
