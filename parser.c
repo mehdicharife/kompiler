@@ -24,6 +24,11 @@ struct Rule {
     int rights_count;
 } typedef Rule;
 
+struct Grammar {
+    Symbol* pstart;
+    Rule* rules;
+} typedef Grammar;
+
 
 void set_rule(Rule* prule, Symbol* pleft, int rights_count, ... ) {
     prule->pleft = pleft;
@@ -66,6 +71,19 @@ int set_symbol_rules(Symbol* pS, Rule* grules, Rule** psrules) {
 }
 
 
+int in_right_of(Symbol* pS, Rule rule) {
+    int index = -1;
+
+    for(int k = 0; k < rule.rights_count; k++) {
+        if(rule.prights[k] == pS) {
+            index = k + 1;
+        }
+    }
+
+    return index;
+}
+
+
 
 int devolves_to_eps(Symbol* pS, Rule* grules) {
     Rule** psrules = malloc(RULES_COUNT*sizeof(Rule*));
@@ -84,9 +102,6 @@ int devolves_to_eps(Symbol* pS, Rule* grules) {
 
 void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
 
-    //printf("Symbol under treatment: %s\n", pS->content);
-
-
     Rule** psrules = malloc(RULES_COUNT*sizeof(Rule*));
     int srules_count = set_symbol_rules(pS, grules, psrules);
 
@@ -94,7 +109,6 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
     for(int k = 0; k < srules_count; k++) {
         Symbol* pY = psrules[k]->prights[0];
         if(pY->type == TERMINAL) {
-            //printf("%s: %s\n", pS->content, pY->content);
             pfirsts[*pfirsts_count] = pY;
             ++*pfirsts_count;
             
@@ -114,42 +128,42 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
 }
 
 
-/*
-int test() {
-    Symbol S, E, K, a, eps, b, c;
+void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count) {
+    for(int k = 0; k < RULES_COUNT; k++) {
+        int index;
+        
+        if((index = in_right_of(pS, grules[k])) != -1) {
+            if(index < grules[k].rights_count) {
+                if(grules[k].prights[index]->type == TERMINAL) {
+                    ppfollows[*pfollows_count] = grules[k].prights[index];
+                    ++*pfollows_count;
+                } else {
+                    Symbol** ppfirsts = malloc(20*sizeof(Symbol*));
+                    int firsts_count = 0;
+                    int r = 0;
 
-    set_symbol(&S, NONTERMINAL, "S");
-    set_symbol(&E, NONTERMINAL, "E");
-    set_symbol(&K, NONTERMINAL, "K");
-    set_symbol(&eps, TERMINAL, "#");
-    set_symbol(&a, TERMINAL, "a");
-    set_symbol(&b, TERMINAL, "b");
-    set_symbol(&c, TERMINAL, "c");
+                    do {
+                        if(index + r < grules[k].rights_count) {
+                            pFIRSTS(grules[k].prights[index + r], grules, ppfirsts, &firsts_count);
+                            r++;
+                            continue;
+                        }
+                        pFOLLOWS(grules[k].pleft, grules, ppfollows, pfollows_count);
+                    } while(((index + r) <= grules[k].rights_count)  && devolves_to_eps(grules[k].prights[index + r - 1], grules));
 
+                    for(int s = 0; s < firsts_count; s++) {
+                        ppfollows[*pfollows_count] = ppfirsts[s];
+                        ++*pfollows_count;
+                    }
 
-    Rule* grules = malloc(RULES_COUNT*sizeof(Rule));
+                }
+            } else {
+                pFOLLOWS(grules[k].pleft, grules, ppfollows, pfollows_count);
+            }
 
-    set_rule(&grules[0], &S, 2, &E, &K);
-    set_rule(&grules[1], &E, 1, &a);
-    set_rule(&grules[2], &E, 1, &eps);
-    set_rule(&grules[3], &K, 1, &b);
-    set_rule(&grules[4], &K, 1, &c);
-
-
-    Symbol** pfirsts = malloc(20*sizeof(Symbol*));
-    int firsts_count = 0; 
-    pFIRSTS(&S, grules, pfirsts, &firsts_count);
-
-
-    for(int k = 0; k < firsts_count; k++) {
-        printf("%d: %s\n", k, pfirsts[k]->content);
+        }
     }
-
-
-    return 0;
-
 }
-*/
 
 
 int main(int argc, char* argv[]) {
@@ -182,16 +196,26 @@ int main(int argc, char* argv[]) {
     set_rule(&grules[7], &F, 1, &intype);
 
     
-
+    /*
     Symbol** pfirsts = malloc(20*sizeof(Symbol*));
     int firsts_count = 0;
 
     pFIRSTS(&F, grules, pfirsts, &firsts_count);
 
-    
-
     for(int k = 0; k < firsts_count; k++) {
         printf("%d: %s\n", k, pfirsts[k]->content);
     }
+    */
+
+    Symbol** ppfollows = malloc(20*sizeof(Symbol*));
+    int follows_count = 0;
+    
+    pFOLLOWS(&F, grules, ppfollows, &follows_count);
+
+    
+    for(int k = 0; k < follows_count; k++) {
+        printf("%d: %s\n", k, ppfollows[k]->content);
+    }
+
 
 }
