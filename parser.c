@@ -4,7 +4,7 @@
 #include <stdarg.h>
 
 
-#define RULES_COUNT 5
+#define RULES_COUNT 8
 
 
 
@@ -14,7 +14,7 @@ enum SymbolType {
 } typedef SymbolType;
 
 struct Symbol {
-    char label;
+    char* content;
     SymbolType type;
 } typedef Symbol;
 
@@ -41,6 +41,12 @@ void set_rule(Rule* prule, Symbol* pleft, int rights_count, ... ) {
 }
 
 
+void set_symbol(Symbol* pS, SymbolType type, char* content) {
+    pS->content = malloc(sizeof(content));
+    strcpy(pS->content, content);
+    
+    pS->type = type;
+}
 
 
 
@@ -54,7 +60,7 @@ int set_symbol_rules(Symbol* pS, Rule* grules, Rule** psrules) {
         }
     }
 
-    //printf("%c: %d\n", pS->label, srules_count);
+    //printf("%c: %d\n", pS->content, srules_count);
 
     return srules_count;
 }
@@ -66,7 +72,7 @@ int devolves_to_eps(Symbol* pS, Rule* grules) {
     int srules_count = set_symbol_rules(pS, grules, psrules);
 
     for(int i = 0; i < srules_count; i++) {
-        if(psrules[i]->prights[0]->label == '#') { // # here denotes epsilon
+        if(!strcmp(psrules[i]->prights[0]->content, "#")) { // # here denotes epsilon
             return 1;
         }
     }
@@ -77,18 +83,21 @@ int devolves_to_eps(Symbol* pS, Rule* grules) {
 
 
 void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
-    printf("Symbol under treatment: %c\n", pS->label);
+
+    //printf("Symbol under treatment: %s\n", pS->content);
+
+
     Rule** psrules = malloc(RULES_COUNT*sizeof(Rule*));
     int srules_count = set_symbol_rules(pS, grules, psrules);
 
 
     for(int k = 0; k < srules_count; k++) {
         Symbol* pY = psrules[k]->prights[0];
-        //printf("%c: %c\n", pS->label, pY->label);
         if(pY->type == TERMINAL) {
+            //printf("%s: %s\n", pS->content, pY->content);
             pfirsts[*pfirsts_count] = pY;
             ++*pfirsts_count;
-            //printf("New FIrstt: %c, First count: %d\n", pfirsts[*pfirsts_count - 1]->label, *pfirsts_count);
+            
             continue;
         }
 
@@ -105,30 +114,18 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
 }
 
 
-
-int main(int argc, char* argv[]) {
+/*
+int test() {
     Symbol S, E, K, a, eps, b, c;
-    S.label = 'S';
-    S.type = NONTERMINAL;
 
-    E.label = 'E';
-    E.type = NONTERMINAL;
+    set_symbol(&S, NONTERMINAL, "S");
+    set_symbol(&E, NONTERMINAL, "E");
+    set_symbol(&K, NONTERMINAL, "K");
+    set_symbol(&eps, TERMINAL, "#");
+    set_symbol(&a, TERMINAL, "a");
+    set_symbol(&b, TERMINAL, "b");
+    set_symbol(&c, TERMINAL, "c");
 
-    K.label = 'K';
-    K.type = NONTERMINAL;
-
-    eps.label = '#';
-    eps.type = TERMINAL;
-
-
-    a.label = 'a';
-    a.type = TERMINAL;
-
-    b.label = 'b';
-    b.type = TERMINAL;
-
-    c.label = 'c';
-    c.type = TERMINAL;
 
     Rule* grules = malloc(RULES_COUNT*sizeof(Rule));
 
@@ -144,14 +141,57 @@ int main(int argc, char* argv[]) {
     pFIRSTS(&S, grules, pfirsts, &firsts_count);
 
 
-    //printf("FIRSTS: %d\n", firsts_count);
-
     for(int k = 0; k < firsts_count; k++) {
-    
-        printf("%d:  %c\n", k, pfirsts[k]->label);
+        printf("%d: %s\n", k, pfirsts[k]->content);
     }
 
 
     return 0;
+
+}
+*/
+
+
+int main(int argc, char* argv[]) {
+
+    Symbol E, _E, T, _T, F, plus, times, lpar, rpar, intype, eps;
+
+    set_symbol(&E, NONTERMINAL, "E");
+    set_symbol(&_E, NONTERMINAL, "_E");
+    set_symbol(&T, NONTERMINAL, "T");
+    set_symbol(&_T, NONTERMINAL, "_T");
+    set_symbol(&F, NONTERMINAL, "F");
+
+    set_symbol(&eps, TERMINAL, "#");
+    set_symbol(&plus, TERMINAL, "+");
+    set_symbol(&times, TERMINAL, "*");
+    set_symbol(&lpar, TERMINAL, "(");
+    set_symbol(&rpar, TERMINAL, ")");
+    set_symbol(&intype, TERMINAL, "int");
+
+
+
+    Rule* grules = malloc(RULES_COUNT*sizeof(Rule));
+    set_rule(&grules[0], &E, 2, &T, &_E);
+    set_rule(&grules[1], &_E, 3, &plus, &T, &_E);
+    set_rule(&grules[2], &_E, 1, &eps);
+    set_rule(&grules[3], &T, 2, &F, &_T);
+    set_rule(&grules[4], &_T, 3, &times, &F, &_T);
+    set_rule(&grules[5], &_T, 1, &eps);    
+    set_rule(&grules[6], &F, 3, &lpar, &E, &rpar);
+    set_rule(&grules[7], &F, 1, &intype);
+
+    
+
+    Symbol** pfirsts = malloc(20*sizeof(Symbol*));
+    int firsts_count = 0;
+
+    pFIRSTS(&F, grules, pfirsts, &firsts_count);
+
+    
+
+    for(int k = 0; k < firsts_count; k++) {
+        printf("%d: %s\n", k, pfirsts[k]->content);
+    }
 
 }
