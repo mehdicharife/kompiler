@@ -8,28 +8,6 @@
 
 
 
-int streq(const void* str1, const void* str2) {
-    return !strcmp((char*) str1, (char*) str2);
-}
-
-int ptreq(void** ptr1, void* ptr2) {
-    return (*ptr1 == ptr2);
-}
-
-int is_in(void* list, int size, void* pelement, int (*equals)(void** this, void* that)) {
-    for(int k = 0; k < size; k++) {
-        if(equals(list + k, pelement)) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-/*init_set_from_array(void* set, void* array, int size) {
-*/
-
-
-
 
 
 
@@ -81,6 +59,22 @@ void set_symbol(Symbol* pS, SymbolType type, char* content) {
 
 
 
+int streq(const void* str1, const void* str2) {
+    return !strcmp((char*) str1, (char*) str2);
+}
+
+int ptreq(void* ptr1, int k, void* ptr2) {
+    return (*(((Symbol**) ptr1) + k) == (Symbol*) ptr2);
+}
+
+int is_in(void* list, int size, void* pelement, int (*equals)(void* this, int k, void* that)) {
+    for(int k = 0; k < size; k++) {
+        if(equals(list, k, pelement)) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 
 
@@ -93,8 +87,6 @@ int set_symbol_rules(Symbol* pS, Rule* grules, Rule** psrules) {
             srules_count++;
         }
     }
-
-    //printf("%c: %d\n", pS->content, srules_count);
 
     return srules_count;
 }
@@ -238,16 +230,16 @@ int main(int argc, char* argv[]) {
     set_rule(&grules[7], &F, 1, &intype);
 
     
-
     Symbol** ppfollows = malloc(20*sizeof(Symbol*));
     int follows_count = 0;
     
     pFOLLOWS(&F, grules, ppfollows, &follows_count);
 
-    
+    printf("FOLLOWS(%s):\n\n", F.content);
     for(int k = 0; k < follows_count; k++) {
         printf("%d: %s\n", k, ppfollows[k]->content);
     }
 
 
+    return 0;
 }
