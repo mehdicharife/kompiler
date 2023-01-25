@@ -2,9 +2,35 @@
 #include <stdio.h>
 #include "string.h"
 #include <stdarg.h>
-
+#include <unistd.h>
 
 #define RULES_COUNT 8
+
+
+
+int streq(const void* str1, const void* str2) {
+    return !strcmp((char*) str1, (char*) str2);
+}
+
+int ptreq(void** ptr1, void* ptr2) {
+    return (*ptr1 == ptr2);
+}
+
+int is_in(void* list, int size, void* pelement, int (*equals)(void** this, void* that)) {
+    for(int k = 0; k < size; k++) {
+        if(equals(list + k, pelement)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/*init_set_from_array(void* set, void* array, int size) {
+*/
+
+
+
+
 
 
 
@@ -52,6 +78,9 @@ void set_symbol(Symbol* pS, SymbolType type, char* content) {
     
     pS->type = type;
 }
+
+
+
 
 
 
@@ -129,12 +158,13 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
 
 
 void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count) {
+    //printf("Symbol under treatment: %s %p\n", pS->content, (void*)pS);
     for(int k = 0; k < RULES_COUNT; k++) {
         int index;
         
         if((index = in_right_of(pS, grules[k])) != -1) {
             if(index < grules[k].rights_count) {
-                if(grules[k].prights[index]->type == TERMINAL) {
+                if(grules[k].prights[index]->type == TERMINAL && !is_in(ppfollows, *pfollows_count, grules[k].prights[index], &ptreq)) {
                     ppfollows[*pfollows_count] = grules[k].prights[index];
                     ++*pfollows_count;
                 } else {
@@ -144,20 +174,32 @@ void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count)
 
                     do {
                         if(index + r < grules[k].rights_count) {
+                            if(grules[k].prights[index + r]->type == TERMINAL && !is_in(ppfollows, *pfollows_count, grules[k].prights[index + r], &ptreq)) {
+                                ppfollows[*pfollows_count] = grules[k].prights[index + r];
+                                ++*pfollows_count;
+                                break;
+                            }
+
                             pFIRSTS(grules[k].prights[index + r], grules, ppfirsts, &firsts_count);
                             r++;
                             continue;
                         }
-                        pFOLLOWS(grules[k].pleft, grules, ppfollows, pfollows_count);
+                        if(grules[k].pleft != pS) {
+                            pFOLLOWS(grules[k].pleft, grules, ppfollows, pfollows_count);
+                            break;
+                        }
                     } while(((index + r) <= grules[k].rights_count)  && devolves_to_eps(grules[k].prights[index + r - 1], grules));
 
                     for(int s = 0; s < firsts_count; s++) {
-                        ppfollows[*pfollows_count] = ppfirsts[s];
-                        ++*pfollows_count;
+                        if(!is_in(ppfollows, *pfollows_count, ppfirsts[s], &ptreq)) {
+                            ppfollows[*pfollows_count] = ppfirsts[s];
+                            ++*pfollows_count;
+                        }
+
                     }
 
                 }
-            } else {
+            } else if(grules[k].pleft != pS) {
                 pFOLLOWS(grules[k].pleft, grules, ppfollows, pfollows_count);
             }
 
@@ -196,16 +238,6 @@ int main(int argc, char* argv[]) {
     set_rule(&grules[7], &F, 1, &intype);
 
     
-    /*
-    Symbol** pfirsts = malloc(20*sizeof(Symbol*));
-    int firsts_count = 0;
-
-    pFIRSTS(&F, grules, pfirsts, &firsts_count);
-
-    for(int k = 0; k < firsts_count; k++) {
-        printf("%d: %s\n", k, pfirsts[k]->content);
-    }
-    */
 
     Symbol** ppfollows = malloc(20*sizeof(Symbol*));
     int follows_count = 0;
