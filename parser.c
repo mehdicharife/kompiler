@@ -34,6 +34,13 @@ struct Grammar {
 } typedef Grammar;
 
 
+void set_symbol(Symbol* pS, SymbolType type, char* content) {
+    pS->content = malloc(sizeof(content));
+    strcpy(pS->content, content);
+    
+    pS->type = type;
+}
+
 void set_rule(Rule* prule, Symbol* pleft, int rights_count, ... ) {
     prule->pleft = pleft;
     prule->rights_count = rights_count;
@@ -49,15 +56,14 @@ void set_rule(Rule* prule, Symbol* pleft, int rights_count, ... ) {
     va_end(args);
 }
 
-
-void set_symbol(Symbol* pS, SymbolType type, char* content) {
-    pS->content = malloc(sizeof(content));
-    strcpy(pS->content, content);
+void print_rule(Rule* prule) {
+    printf("%s -> ", prule->pleft->content);
+    for(int k = 0; k < prule->rights_count; k++) {
+        printf(" %s", prule->prights[k]->content);
+    }
     
-    pS->type = type;
+    printf("\n");
 }
-
-
 
 int streq(const void* str1, const void* str2) {
     return !strcmp((char*) str1, (char*) str2);
@@ -106,17 +112,17 @@ int in_right_of(Symbol* pS, Rule rule) {
 
 
 
-int devolves_to_eps(Symbol* pS, Rule* grules) {
+Rule* devolves_to_eps(Symbol* pS, Rule* grules) {
     Rule** psrules = malloc(RULES_COUNT*sizeof(Rule*));
     int srules_count = set_symbol_rules(pS, grules, psrules);
 
     for(int i = 0; i < srules_count; i++) {
         if(!strcmp(psrules[i]->prights[0]->content, "#")) { // # here denotes epsilon
-            return 1;
+            return psrules[i];
         }
     }
 
-    return 0;
+    return NULL;
 }
 
 
@@ -200,6 +206,47 @@ void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count)
 }
 
 
+Rule* analysis_cell(Symbol* pNT, Symbol* pT, Rule* grules) {
+    Rule** psrules = malloc(RULES_COUNT*sizeof(Rule*));
+    int srules_count = set_symbol_rules(pNT, grules, psrules);
+
+    for(int k = 0; k < srules_count; k++) {
+        int i = 0;
+        do {
+            int firsts_count = 0;
+            Symbol** ppfirsts = malloc(20*sizeof(Symbol));
+            pFIRSTS(psrules[k]->prights[i], grules, ppfirsts, &firsts_count);
+
+            if(is_in(ppfirsts, firsts_count, pT, &ptreq)) {
+                return psrules[k];
+            }
+
+            i++;
+
+            free(ppfirsts);
+            firsts_count = 0;
+
+        } while( i < psrules[k]->rights_count && devolves_to_eps(psrules[k]->prights[i - 1], grules));
+
+        Rule* roll;
+
+        if((roll = devolves_to_eps(pNT, grules))) {
+            int follows_count = 0;
+            Symbol** ppfollows = malloc(20*sizeof(Symbol*));
+            pFOLLOWS(pNT, grules, ppfollows, &follows_count);
+
+            if(is_in(ppfollows, follows_count, pT, &ptreq)) {
+                free(ppfollows);
+                return roll;
+            }
+        }
+
+        return NULL;
+
+    }
+}
+
+
 int main(int argc, char* argv[]) {
 
     Symbol E, _E, T, _T, F, plus, times, lpar, rpar, intype, eps;
@@ -230,7 +277,7 @@ int main(int argc, char* argv[]) {
     set_rule(&grules[7], &F, 1, &intype);
 
     
-    Symbol** ppfollows = malloc(20*sizeof(Symbol*));
+    /*Symbol** ppfollows = malloc(20*sizeof(Symbol*));
     int follows_count = 0;
     
     pFOLLOWS(&F, grules, ppfollows, &follows_count);
@@ -238,7 +285,13 @@ int main(int argc, char* argv[]) {
     printf("FOLLOWS(%s):\n\n", F.content);
     for(int k = 0; k < follows_count; k++) {
         printf("%d: %s\n", k, ppfollows[k]->content);
+    }*/
+
+    Rule* prula = analysis_cell(&E, &lpar, grules);
+    if(prula) {
+        print_rule(prula);
     }
+    
 
 
     return 0;
