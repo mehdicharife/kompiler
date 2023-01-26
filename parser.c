@@ -34,6 +34,60 @@ struct Grammar {
 } typedef Grammar;
 
 
+
+struct node {
+    void* pcontent;
+    struct node* next;
+} typedef node;
+
+
+
+void push(node** pstack, void* pcontent) {
+    node* pnewhead = malloc(sizeof(node));
+    pnewhead->pcontent = pcontent;
+    pnewhead->next = *pstack;
+
+    *pstack = pnewhead;
+}
+
+void* pop(node** pstack) {
+    node* pnewtop = (*pstack)->next;
+    void* oldtopcontent = (*pstack)->pcontent;
+    free(*pstack);
+    *pstack = pnewtop;
+
+    return oldtopcontent;
+}
+
+void* top(node** pstack) {
+    return (*pstack)->pcontent;
+}
+
+void* bottom(node** pstack) {
+    node* pcurrent_node = *pstack;
+
+    while(pcurrent_node->next) {
+        pcurrent_node = pcurrent_node->next;
+    }
+
+    return pcurrent_node->pcontent;
+}
+
+void* push_many(node** pstack, int nodes_count, ...){
+
+    va_list args;
+    va_start(args, nodes_count);
+
+    for(int k = 0; k < nodes_count; k++) {
+        push(pstack, va_arg(args, void*));
+    }
+
+    va_end(args);
+};
+
+
+
+
 void set_symbol(Symbol* pS, SymbolType type, char* content) {
     pS->content = malloc(sizeof(content));
     strcpy(pS->content, content);
@@ -156,7 +210,6 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
 
 
 void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count) {
-    //printf("Symbol under treatment: %s %p\n", pS->content, (void*)pS);
     for(int k = 0; k < RULES_COUNT; k++) {
         int index;
         
@@ -287,12 +340,27 @@ int main(int argc, char* argv[]) {
         printf("%d: %s\n", k, ppfollows[k]->content);
     }*/
 
-    Rule* prula = analysis_cell(&E, &lpar, grules);
+    /*Rule* prula = analysis_cell(&E, &lpar, grules);
     if(prula) {
         print_rule(prula);
-    }
+    }*/
     
 
+
+    node** psymbol_stack = malloc(sizeof(node*));
+    node** ptoken_stack = malloc(sizeof(node*));
+
+    node nE, nT, nF;
+    node nt1, nt2, nt3;
+
+
+    push_many(psymbol_stack, 3, &F, &T, &E);
+    push_many(ptoken_stack,2, "jkjk", "k");
+
+    printf("Popped: %s\nNew top: %s\n", ((Symbol*) pop(psymbol_stack))->content, ((Symbol*) top(psymbol_stack))->content);
+
+    printf("Popped: %s\nNew top: %s\n", ((char*) pop(ptoken_stack)), ((char*) top(ptoken_stack)));
+    printf("Popped: %s\nNew top: %s\n", ((char*) pop(ptoken_stack)), ((char*) top(ptoken_stack)));
 
     return 0;
 }
