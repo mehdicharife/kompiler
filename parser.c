@@ -4,35 +4,20 @@
 #include <stdarg.h>
 #include <unistd.h>
 
+#include "lexer.h"
+
 #define RULES_COUNT 8
 
 
 
-
-
-
-
-enum SymbolType {
-    TERMINAL,
-    NONTERMINAL
-} typedef SymbolType;
-
-struct Symbol {
-    char* content;
-    SymbolType type;
-} typedef Symbol;
-
-struct Rule {
-    Symbol* pleft;
-    Symbol** prights;
-    int rights_count;
-} typedef Rule;
-
-struct Grammar {
-    Symbol* pstart;
-    Rule* rules;
-} typedef Grammar;
-
+int is_in(void* list, int size, void* pelement, int (*equals)(void* this, int k, void* that)) {
+    for(int k = 0; k < size; k++) {
+        if(equals(list, k, pelement)) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 
 struct node {
@@ -85,6 +70,42 @@ void* push_many(node** pstack, int nodes_count, ...){
     va_end(args);
 };
 
+void push_array(node** pstack, void** array, int array_size, void (*push_from_index_of)(node** pstak, int k, void** array)) {
+    for(int k = 0; k < array_size; k++) {
+        push_from_index_of(pstack, k, array);
+    }
+}
+
+
+
+enum SymbolType {
+    TERMINAL,
+    NONTERMINAL
+} typedef SymbolType;
+
+struct Symbol {
+    char* content;
+    SymbolType type;
+} typedef Symbol;
+
+
+
+struct Rule {
+    Symbol* pleft;
+    Symbol** prights;
+    int rights_count;
+} typedef Rule;
+
+struct Grammar {
+    Symbol* pstart;
+    Rule* rules;
+} typedef Grammar;
+
+
+
+// globals:
+Symbol dollar = {"$", TERMINAL};
+
 
 
 
@@ -93,6 +114,10 @@ void set_symbol(Symbol* pS, SymbolType type, char* content) {
     strcpy(pS->content, content);
     
     pS->type = type;
+}
+
+void push_from_index_of_psymbol_array(node** pstack, int k, void** array) {
+    push(pstack, ((Symbol**) array)[k]);
 }
 
 void set_rule(Rule* prule, Symbol* pleft, int rights_count, ... ) {
@@ -127,14 +152,7 @@ int ptreq(void* ptr1, int k, void* ptr2) {
     return (*(((Symbol**) ptr1) + k) == (Symbol*) ptr2);
 }
 
-int is_in(void* list, int size, void* pelement, int (*equals)(void* this, int k, void* that)) {
-    for(int k = 0; k < size; k++) {
-        if(equals(list, k, pelement)) {
-            return 1;
-        }
-    }
-    return 0;
-}
+
 
 
 
@@ -297,6 +315,48 @@ Rule* analysis_cell(Symbol* pNT, Symbol* pT, Rule* grules) {
         return NULL;
 
     }
+}
+
+
+
+int verify_rect(node** psymbol_stack, node** plexeme_stack, Rule* grules) {
+    if(top(psymbol_stack) == &dollar){
+        return (top(plexeme_stack) == &dollar);
+    }
+
+    if(top(psymbol_stack) == top(plexeme_stack)) {
+        pop(psymbol_stack);
+        pop(plexeme_stack);
+
+        return verify_rec(psymbol_stack, plexeme_stack, grules);
+    }
+
+    Rule* prule = analysis_cell(top(psymbol_stack), top(plexeme_stack), grules);
+    if(!prule) {
+        return 0;
+    } 
+
+    pop(psymbol_stack);
+    push_array(psymbol_stack, prule->prights, prule->rights_count);
+    return verify_rec(psymbol_stack, plexeme_stack);
+}
+
+
+int verify(Rule* grules, Symbol* pS, char* statement) {
+    node* psymbol_stack = malloc(sizeof(node*));
+    node* ptoken_stack = malloc(sizeof(node*));
+
+    // push dollar sign
+    push(psymbol_stack, pS);
+
+    Lexeme** pplexemes = malloc(strlen(statement)*sizeof(Lexeme*));
+    int lexemes_count = lex(statement, pplexemes);
+    // push dollar sign
+    push_array(ptoken_stack, pplexemes, lexemes_count);
+
+
+    return verify_rec(psymbol_stack, ptoken_stack);
+
 }
 
 
