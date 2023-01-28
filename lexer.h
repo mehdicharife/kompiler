@@ -1,5 +1,5 @@
 
-
+#include "parser.h"
 
 struct place {
     int line;
@@ -14,7 +14,7 @@ enum LexemeType {
     grroperator,
     string_literal,
     numeric_constant,
-    comment, 
+    comment,
 } typedef LexemeType;
 
 struct Lexeme {
@@ -23,4 +23,6 @@ struct Lexeme {
     place location;
 } typedef Lexeme;
 
-int lex(char* code, Lexeme** pplexemes);
+
+int set_from_code(char* code, CFG* pgrammar, void** ppthings, int lexemes);
+

@@ -5,11 +5,13 @@
 #include <unistd.h>
 
 #include "lexer.h"
+#include "parser.h"
 
 #define RULES_COUNT 8
 
 
-
+int set_from_code(char* code, CFG* pgrammar, void** ppthings, int lexemes);
+ 
 int is_in(void* list, int size, void* pelement, int (*equals)(void* this, int k, void* that)) {
     for(int k = 0; k < size; k++) {
         if(equals(list, k, pelement)) {
@@ -71,35 +73,15 @@ void* push_many(node** pstack, int nodes_count, ...){
 };
 
 void push_array(node** pstack, void** array, int array_size, void (*push_from_index_of)(node** pstak, int k, void** array)) {
-    for(int k = 0; k < array_size; k++) {
+    for(int k = array_size; k > -1; k--) {
         push_from_index_of(pstack, k, array);
     }
 }
 
 
 
-enum SymbolType {
-    TERMINAL,
-    NONTERMINAL
-} typedef SymbolType;
-
-struct Symbol {
-    char* content;
-    SymbolType type;
-} typedef Symbol;
 
 
-
-struct Rule {
-    Symbol* pleft;
-    Symbol** prights;
-    int rights_count;
-} typedef Rule;
-
-struct Grammar {
-    Symbol* pstart;
-    Rule* rules;
-} typedef Grammar;
 
 
 
@@ -297,7 +279,7 @@ Rule* analysis_cell(Symbol* pNT, Symbol* pT, Rule* grules) {
             free(ppfirsts);
             firsts_count = 0;
 
-        } while( i < psrules[k]->rights_count && devolves_to_eps(psrules[k]->prights[i - 1], grules));
+        } while(i < psrules[k]->rights_count && devolves_to_eps(psrules[k]->prights[i - 1], grules));
 
         Rule* roll;
 
@@ -319,7 +301,7 @@ Rule* analysis_cell(Symbol* pNT, Symbol* pT, Rule* grules) {
 
 
 
-int verify_rect(node** psymbol_stack, node** plexeme_stack, Rule* grules) {
+int verify_rec(node** psymbol_stack, node** plexeme_stack, Rule* grules) {
     if(top(psymbol_stack) == &dollar){
         return (top(plexeme_stack) == &dollar);
     }
@@ -337,25 +319,25 @@ int verify_rect(node** psymbol_stack, node** plexeme_stack, Rule* grules) {
     } 
 
     pop(psymbol_stack);
-    push_array(psymbol_stack, prule->prights, prule->rights_count);
-    return verify_rec(psymbol_stack, plexeme_stack);
+    push_array(psymbol_stack, (void**) prule->prights, prule->rights_count, &push_from_index_of_psymbol_array);
+    return verify_rec(psymbol_stack, plexeme_stack, grules);
 }
 
 
-int verify(Rule* grules, Symbol* pS, char* statement) {
-    node* psymbol_stack = malloc(sizeof(node*));
-    node* ptoken_stack = malloc(sizeof(node*));
+int verify(char* statement, CFG* pgrammar) {
+    node** psymbols_stack = malloc(sizeof(node*));
+    node** pterminals_stack = malloc(sizeof(node*));
 
-    // push dollar sign
-    push(psymbol_stack, pS);
+    push(psymbols_stack, &dollar);
+    push(psymbols_stack, pgrammar->pstart);
 
-    Lexeme** pplexemes = malloc(strlen(statement)*sizeof(Lexeme*));
-    int lexemes_count = lex(statement, pplexemes);
-    // push dollar sign
-    push_array(ptoken_stack, pplexemes, lexemes_count);
+    Symbol** ppterminals = malloc(strlen(statement)*sizeof(Symbol*));
+    int terminals_count = set_from_code(statement, pgrammar, ((void**) ppterminals), 0);
+    push(pterminals_stack, &dollar);
+    push_array(pterminals_stack, (void**) ppterminals, terminals_count, &push_from_index_of_psymbol_array);
 
 
-    return verify_rec(psymbol_stack, ptoken_stack);
+    return verify_rec(psymbols_stack, pterminals_stack, pgrammar->rules);
 
 }
 
