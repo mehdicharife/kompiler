@@ -18,7 +18,7 @@ enum LexemeType {
 } typedef LexemeType;
 
 struct Lexeme {
-    LexemeType type;
+    Symbol* psymbol;
     char* content;
     place location;
 } typedef Lexeme;
