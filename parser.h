@@ -31,5 +31,6 @@ struct CFG {
 
 } typedef CFG;
 
+void print_rule(Rule* prule);
 
 #endif

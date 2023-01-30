@@ -123,25 +123,30 @@ int fits_token_pattern(char* code, int start, int index, char* lexeme_content, C
     // pattern-hostile lexemes (currently separators and operators)
     for(int k = 0; k < pgrammar->rules_count; k++) {
         Rule* prule = &(pgrammar->rules[k]);
-
+                
         if(prule->rights_count > 1 || prule->prights[0]->type == NONTERMINAL) {
             continue;
         }
 
+
         char* ntcontent = pgrammar->rules[k].prights[0]->content;
+
         if(start + strlen(ntcontent) - 1 >= strlen(code)) {
             continue;
         }
 
         
         char* temp = malloc(strlen(ntcontent)*sizeof(char));
+
         set_substr(code, temp, start, start + strlen(ntcontent) - 1);
+
         if(strcmp(ntcontent, temp)) {
             free(temp);
             continue;
         }
-            
+
         strcpy(lexeme_content, ntcontent);
+        
         free(temp);    
         *ppfit_rule = prule;
 
@@ -155,6 +160,7 @@ int fits_token_pattern(char* code, int start, int index, char* lexeme_content, C
 
 Lexeme* readLexeme(char* code, int index, CFG* pgrammar) {
     Lexeme* plexeme = malloc(sizeof(Lexeme));
+    plexeme->content = malloc(30*sizeof(char));
 
     int p = 0;
     char* lexeme_content = malloc(1000*sizeof(char));
@@ -183,7 +189,6 @@ int set_from_code(char* code, CFG* pgrammar, void** ppthings, int lexemes) {
     int line = 1;
 
     while(k < strlen(code)) {
-
         if(code[k] == ' ') {
             k++;
             continue;

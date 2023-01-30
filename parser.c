@@ -328,21 +328,97 @@ int verify(char* statement, CFG* pgrammar) {
     node** psymbols_stack = malloc(sizeof(node*));
     node** pterminals_stack = malloc(sizeof(node*));
 
+    
     push(psymbols_stack, &dollar);
     push(psymbols_stack, pgrammar->pstart);
+    
 
     Symbol** ppterminals = malloc(strlen(statement)*sizeof(Symbol*));
     int terminals_count = set_from_code(statement, pgrammar, ((void**) ppterminals), 0);
+    
     push(pterminals_stack, &dollar);
     push_array(pterminals_stack, (void**) ppterminals, terminals_count, &push_from_index_of_psymbol_array);
 
-
+    
     return verify_rec(psymbols_stack, pterminals_stack, pgrammar->rules);
 
 }
 
 
+
 int main(int argc, char* argv[]) {
+    Symbol decl, type, id, operator, numc, _int, _char, assign, sep, semicolon;
+
+    set_symbol(&decl, NONTERMINAL, "declaration");
+    set_symbol(&type, NONTERMINAL, "type");
+    set_symbol(&id, TERMINAL, "identifier");
+    set_symbol(&operator, NONTERMINAL, "operator");
+    set_symbol(&numc, TERMINAL, "numeric_constant");
+    set_symbol(&_int, TERMINAL, "int");
+    set_symbol(&_char, TERMINAL, "char");
+    set_symbol(&assign, TERMINAL, "=");
+    set_symbol(&sep, NONTERMINAL, "separator");
+    set_symbol(&semicolon, TERMINAL, ";");
+
+
+    Rule* grules = malloc(sizeof(Rule)*5);
+
+    set_rule(&grules[0], &decl, 4, &type, &id, &operator, &numc);
+    set_rule(&grules[1], &type, 1, &_int);
+    set_rule(&grules[2], &type, 1, &_char);
+    set_rule(&grules[3], &operator, 1, &assign);
+    set_rule(&grules[4], &sep, 1, &semicolon);
+
+
+    CFG* pgrammar = malloc(sizeof(CFG));
+    pgrammar->rules = grules;
+    pgrammar->rules_count = 5;
+
+    pgrammar->symbols_count = 10;
+
+    pgrammar->psymbols = malloc((pgrammar->symbols_count)*sizeof(Symbol*));
+    pgrammar->psymbols[0] = &decl;
+    pgrammar->psymbols[1] = &type;
+    pgrammar->psymbols[2] = &id;
+    pgrammar->psymbols[3] = &operator;
+    pgrammar->psymbols[4] = &numc;
+    pgrammar->psymbols[5] = &_int;
+    pgrammar->psymbols[6] = &_char;
+    pgrammar->psymbols[7] = &assign;
+    pgrammar->psymbols[8] = &sep;
+    pgrammar->psymbols[9] = &semicolon;
+
+    
+    pgrammar->pstart = &decl;
+    pgrammar->id_pos = 2;
+    pgrammar->numc_pos = 4;
+
+
+    char* statement = "int k = 5;";
+
+    printf("%d\n", verify(statement, pgrammar));
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+int marb(int argc, char* argv[]) {
 
     Symbol E, _E, T, _T, F, plus, times, lpar, rpar, intype, eps;
 
@@ -372,20 +448,6 @@ int main(int argc, char* argv[]) {
     set_rule(&grules[7], &F, 1, &intype);
 
     
-    /*Symbol** ppfollows = malloc(20*sizeof(Symbol*));
-    int follows_count = 0;
-    
-    pFOLLOWS(&F, grules, ppfollows, &follows_count);
-
-    printf("FOLLOWS(%s):\n\n", F.content);
-    for(int k = 0; k < follows_count; k++) {
-        printf("%d: %s\n", k, ppfollows[k]->content);
-    }*/
-
-    /*Rule* prula = analysis_cell(&E, &lpar, grules);
-    if(prula) {
-        print_rule(prula);
-    }*/
     
 
 
@@ -406,3 +468,5 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
+*/
