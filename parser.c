@@ -7,7 +7,6 @@
 #include "lexer.h"
 #include "parser.h"
 
-#define RULES_COUNT 8
 
 
 int set_from_code(char* code, CFG* pgrammar, void** ppthings, int lexemes);
@@ -73,9 +72,24 @@ void* push_many(node** pstack, int nodes_count, ...){
 };
 
 void push_array(node** pstack, void** array, int array_size, void (*push_from_index_of)(node** pstak, int k, void** array)) {
-    for(int k = array_size; k > -1; k--) {
+    for(int k = array_size - 1; k > -1; k--) {
         push_from_index_of(pstack, k, array);
     }
+}
+
+char* get_symbol_as_str(void* pS) {
+    return ((Symbol*) pS)->content;
+}
+
+void print_stack(node** pstack, char*(*get_as_str)(void*)) {
+    node* pcurrent_node = *pstack;
+
+    do {
+        printf("%s ", get_as_str(pcurrent_node->pcontent));
+        pcurrent_node = pcurrent_node->next;
+    }while(pcurrent_node != NULL);
+
+    printf("\n");
 }
 
 
@@ -138,12 +152,12 @@ int ptreq(void* ptr1, int k, void* ptr2) {
 
 
 
-int set_symbol_rules(Symbol* pS, Rule* grules, Rule** psrules) {
+int set_symbol_rules(Symbol* pS, CFG* pgrammar, Rule** psrules) {
     int srules_count = 0;
 
-    for(int r = 0; r < RULES_COUNT; r++) {
-        if(grules[r].pleft == pS) {
-            psrules[srules_count] = grules + r;
+    for(int r = 0; r < pgrammar->rules_count ; r++) {
+        if(pgrammar->rules[r].pleft == pS) {
+            psrules[srules_count] = pgrammar->rules + r;
             srules_count++;
         }
     }
@@ -166,9 +180,9 @@ int in_right_of(Symbol* pS, Rule rule) {
 
 
 
-Rule* devolves_to_eps(Symbol* pS, Rule* grules) {
-    Rule** psrules = malloc(RULES_COUNT*sizeof(Rule*));
-    int srules_count = set_symbol_rules(pS, grules, psrules);
+Rule* devolves_to_eps(Symbol* pS, CFG* pgrammar) {
+    Rule** psrules = malloc((pgrammar->rules_count)*sizeof(Rule*));
+    int srules_count = set_symbol_rules(pS, pgrammar, psrules);
 
     for(int i = 0; i < srules_count; i++) {
         if(!strcmp(psrules[i]->prights[0]->content, "#")) { // # here denotes epsilon
@@ -181,10 +195,10 @@ Rule* devolves_to_eps(Symbol* pS, Rule* grules) {
 
 
 
-void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
+void pFIRSTS(Symbol* pS, CFG* pgrammar, Symbol* pfirsts[], int* pfirsts_count) {
 
-    Rule** psrules = malloc(RULES_COUNT*sizeof(Rule*));
-    int srules_count = set_symbol_rules(pS, grules, psrules);
+    Rule** psrules = malloc((pgrammar->rules_count)*sizeof(Rule*));
+    int srules_count = set_symbol_rules(pS, pgrammar, psrules);
 
 
     for(int k = 0; k < srules_count; k++) {
@@ -196,10 +210,10 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
             continue;
         }
 
-        pFIRSTS(pY, grules, pfirsts, pfirsts_count);
+        pFIRSTS(pY, pgrammar, pfirsts, pfirsts_count);
         for(int l = 0; l + 1 < psrules[k]->rights_count; l++) {
-            if(devolves_to_eps(psrules[k]->prights[l], grules)) {
-                pFIRSTS(psrules[k]->prights[l + 1], grules, pfirsts, pfirsts_count);
+            if(devolves_to_eps(psrules[k]->prights[l], pgrammar)) {
+                pFIRSTS(psrules[k]->prights[l + 1], pgrammar, pfirsts, pfirsts_count);
             } else {
                 break;
             }
@@ -209,14 +223,20 @@ void pFIRSTS(Symbol* pS, Rule* grules, Symbol* pfirsts[], int* pfirsts_count) {
 }
 
 
-void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count) {
-    for(int k = 0; k < RULES_COUNT; k++) {
+void pFOLLOWS(Symbol* pS, CFG* pgrammar, Symbol** ppfollows, int* pfollows_count) {
+    if(pgrammar->pstart == pS && !is_in(ppfollows, *pfollows_count, pS, &ptreq)) {
+        ppfollows[*pfollows_count] = &dollar;
+        ++*pfollows_count;
+
+    }
+
+    for(int k = 0; k < pgrammar->rules_count; k++) {
         int index;
         
-        if((index = in_right_of(pS, grules[k])) != -1) {
-            if(index < grules[k].rights_count) {
-                if(grules[k].prights[index]->type == TERMINAL && !is_in(ppfollows, *pfollows_count, grules[k].prights[index], &ptreq)) {
-                    ppfollows[*pfollows_count] = grules[k].prights[index];
+        if((index = in_right_of(pS, pgrammar->rules[k])) != -1) {
+            if(index < pgrammar->rules[k].rights_count) {
+                if(pgrammar->rules[k].prights[index]->type == TERMINAL && !is_in(ppfollows, *pfollows_count, pgrammar->rules[k].prights[index], &ptreq)) {
+                    ppfollows[*pfollows_count] = pgrammar->rules[k].prights[index];
                     ++*pfollows_count;
                 } else {
                     Symbol** ppfirsts = malloc(20*sizeof(Symbol*));
@@ -224,22 +244,22 @@ void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count)
                     int r = 0;
 
                     do {
-                        if(index + r < grules[k].rights_count) {
-                            if(grules[k].prights[index + r]->type == TERMINAL && !is_in(ppfollows, *pfollows_count, grules[k].prights[index + r], &ptreq)) {
-                                ppfollows[*pfollows_count] = grules[k].prights[index + r];
+                        if(index + r < pgrammar->rules[k].rights_count) {
+                            if(pgrammar->rules[k].prights[index + r]->type == TERMINAL && !is_in(ppfollows, *pfollows_count, pgrammar->rules[k].prights[index + r], &ptreq)) {
+                                ppfollows[*pfollows_count] = pgrammar->rules[k].prights[index + r];
                                 ++*pfollows_count;
                                 break;
                             }
 
-                            pFIRSTS(grules[k].prights[index + r], grules, ppfirsts, &firsts_count);
+                            pFIRSTS(pgrammar->rules[k].prights[index + r], pgrammar, ppfirsts, &firsts_count);
                             r++;
                             continue;
                         }
-                        if(grules[k].pleft != pS) {
-                            pFOLLOWS(grules[k].pleft, grules, ppfollows, pfollows_count);
+                        if(pgrammar->rules[k].pleft != pS) {
+                            pFOLLOWS(pgrammar->rules[k].pleft, pgrammar, ppfollows, pfollows_count);
                             break;
                         }
-                    } while(((index + r) <= grules[k].rights_count)  && devolves_to_eps(grules[k].prights[index + r - 1], grules));
+                    } while(((index + r) <= pgrammar->rules[k].rights_count)  && devolves_to_eps(pgrammar->rules[k].prights[index + r - 1], pgrammar));
 
                     for(int s = 0; s < firsts_count; s++) {
                         if(!is_in(ppfollows, *pfollows_count, ppfirsts[s], &ptreq)) {
@@ -250,8 +270,8 @@ void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count)
                     }
 
                 }
-            } else if(grules[k].pleft != pS) {
-                pFOLLOWS(grules[k].pleft, grules, ppfollows, pfollows_count);
+            } else if(pgrammar->rules[k].pleft != pS) {
+                pFOLLOWS(pgrammar->rules[k].pleft, pgrammar, ppfollows, pfollows_count);
             }
 
         }
@@ -259,16 +279,25 @@ void pFOLLOWS(Symbol* pS, Rule* grules, Symbol** ppfollows, int* pfollows_count)
 }
 
 
-Rule* analysis_cell(Symbol* pNT, Symbol* pT, Rule* grules) {
-    Rule** psrules = malloc(RULES_COUNT*sizeof(Rule*));
-    int srules_count = set_symbol_rules(pNT, grules, psrules);
+Rule* analysis_cell(Symbol* pNT, Symbol* pT, CFG* pgrammar) {
+    Rule** psrules = malloc((pgrammar->rules_count)*sizeof(Rule*));
+    int srules_count = set_symbol_rules(pNT, pgrammar, psrules);
 
     for(int k = 0; k < srules_count; k++) {
+        if(psrules[k]->prights[0]->type == TERMINAL) {
+            if(psrules[k]->prights[0] == pT) {
+                return psrules[k];
+            }
+
+            continue;
+        }
+
+
         int i = 0;
         do {
             int firsts_count = 0;
             Symbol** ppfirsts = malloc(20*sizeof(Symbol));
-            pFIRSTS(psrules[k]->prights[i], grules, ppfirsts, &firsts_count);
+            pFIRSTS(psrules[k]->prights[i], pgrammar, ppfirsts, &firsts_count);
 
             if(is_in(ppfirsts, firsts_count, pT, &ptreq)) {
                 return psrules[k];
@@ -279,29 +308,30 @@ Rule* analysis_cell(Symbol* pNT, Symbol* pT, Rule* grules) {
             free(ppfirsts);
             firsts_count = 0;
 
-        } while(i < psrules[k]->rights_count && devolves_to_eps(psrules[k]->prights[i - 1], grules));
-
-        Rule* roll;
-
-        if((roll = devolves_to_eps(pNT, grules))) {
-            int follows_count = 0;
-            Symbol** ppfollows = malloc(20*sizeof(Symbol*));
-            pFOLLOWS(pNT, grules, ppfollows, &follows_count);
-
-            if(is_in(ppfollows, follows_count, pT, &ptreq)) {
-                free(ppfollows);
-                return roll;
-            }
-        }
-
-        return NULL;
+        } while(i < psrules[k]->rights_count && devolves_to_eps(psrules[k]->prights[i - 1], pgrammar));
 
     }
+
+
+    Rule* roll;
+    if((roll = devolves_to_eps(pNT, pgrammar))) {
+        int follows_count = 0;
+        Symbol** ppfollows = malloc(20*sizeof(Symbol*));
+        pFOLLOWS(pNT, pgrammar, ppfollows, &follows_count);
+
+        if(is_in(ppfollows, follows_count, pT, &ptreq)) {
+            free(ppfollows);
+            return roll;
+        }
+    }
+
+    
+    return NULL;
 }
 
 
 
-int verify_rec(node** psymbol_stack, node** plexeme_stack, Rule* grules) {
+int verify_rec(node** psymbol_stack, node** plexeme_stack, CFG* pgrammar) {
     if(top(psymbol_stack) == &dollar){
         return (top(plexeme_stack) == &dollar);
     }
@@ -310,17 +340,19 @@ int verify_rec(node** psymbol_stack, node** plexeme_stack, Rule* grules) {
         pop(psymbol_stack);
         pop(plexeme_stack);
 
-        return verify_rec(psymbol_stack, plexeme_stack, grules);
+        return verify_rec(psymbol_stack, plexeme_stack, pgrammar);
     }
 
-    Rule* prule = analysis_cell(top(psymbol_stack), top(plexeme_stack), grules);
+    Rule* prule = analysis_cell(top(psymbol_stack), top(plexeme_stack), pgrammar);
     if(!prule) {
         return 0;
     } 
 
     pop(psymbol_stack);
     push_array(psymbol_stack, (void**) prule->prights, prule->rights_count, &push_from_index_of_psymbol_array);
-    return verify_rec(psymbol_stack, plexeme_stack, grules);
+
+
+    return verify_rec(psymbol_stack, plexeme_stack, pgrammar);
 }
 
 
@@ -339,8 +371,8 @@ int verify(char* statement, CFG* pgrammar) {
     push(pterminals_stack, &dollar);
     push_array(pterminals_stack, (void**) ppterminals, terminals_count, &push_from_index_of_psymbol_array);
 
-    
-    return verify_rec(psymbols_stack, pterminals_stack, pgrammar->rules);
+
+    return verify_rec(psymbols_stack, pterminals_stack, pgrammar);
 
 }
 
@@ -363,7 +395,7 @@ int main(int argc, char* argv[]) {
 
     Rule* grules = malloc(sizeof(Rule)*5);
 
-    set_rule(&grules[0], &decl, 4, &type, &id, &operator, &numc);
+    set_rule(&grules[0], &decl, 5, &type, &id, &operator, &numc, &semicolon);
     set_rule(&grules[1], &type, 1, &_int);
     set_rule(&grules[2], &type, 1, &_char);
     set_rule(&grules[3], &operator, 1, &assign);
@@ -394,7 +426,15 @@ int main(int argc, char* argv[]) {
     pgrammar->numc_pos = 4;
 
 
-    char* statement = "int k = 5;";
+    char* statement = "int hhhhhhh = 78954;";
+
+    Symbol** ppsymbols = malloc(strlen(statement)*sizeof(Symbol*));
+    int symbols_count = set_from_code(statement, pgrammar, (void**) ppsymbols, 0);
+    
+    for(int k = 0; k < symbols_count; k++) {
+        printf("%s ", ppsymbols[k]->content);
+    }
+    printf("\n");
 
     printf("%d\n", verify(statement, pgrammar));
 
@@ -405,68 +445,3 @@ int main(int argc, char* argv[]) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-int marb(int argc, char* argv[]) {
-
-    Symbol E, _E, T, _T, F, plus, times, lpar, rpar, intype, eps;
-
-    set_symbol(&E, NONTERMINAL, "E");
-    set_symbol(&_E, NONTERMINAL, "_E");
-    set_symbol(&T, NONTERMINAL, "T");
-    set_symbol(&_T, NONTERMINAL, "_T");
-    set_symbol(&F, NONTERMINAL, "F");
-
-    set_symbol(&eps, TERMINAL, "#");
-    set_symbol(&plus, TERMINAL, "+");
-    set_symbol(&times, TERMINAL, "*");
-    set_symbol(&lpar, TERMINAL, "(");
-    set_symbol(&rpar, TERMINAL, ")");
-    set_symbol(&intype, TERMINAL, "int");
-
-
-
-    Rule* grules = malloc(RULES_COUNT*sizeof(Rule));
-    set_rule(&grules[0], &E, 2, &T, &_E);
-    set_rule(&grules[1], &_E, 3, &plus, &T, &_E);
-    set_rule(&grules[2], &_E, 1, &eps);
-    set_rule(&grules[3], &T, 2, &F, &_T);
-    set_rule(&grules[4], &_T, 3, &times, &F, &_T);
-    set_rule(&grules[5], &_T, 1, &eps);    
-    set_rule(&grules[6], &F, 3, &lpar, &E, &rpar);
-    set_rule(&grules[7], &F, 1, &intype);
-
-    
-    
-
-
-    node** psymbol_stack = malloc(sizeof(node*));
-    node** ptoken_stack = malloc(sizeof(node*));
-
-    node nE, nT, nF;
-    node nt1, nt2, nt3;
-
-
-    push_many(psymbol_stack, 3, &F, &T, &E);
-    push_many(ptoken_stack,2, "jkjk", "k");
-
-    printf("Popped: %s\nNew top: %s\n", ((Symbol*) pop(psymbol_stack))->content, ((Symbol*) top(psymbol_stack))->content);
-
-    printf("Popped: %s\nNew top: %s\n", ((char*) pop(ptoken_stack)), ((char*) top(ptoken_stack)));
-    printf("Popped: %s\nNew top: %s\n", ((char*) pop(ptoken_stack)), ((char*) top(ptoken_stack)));
-
-    return 0;
-}
-
-*/

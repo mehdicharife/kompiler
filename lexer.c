@@ -79,9 +79,6 @@ Symbol* getp_corresponding_symbol(char* lexeme_content, Rule* prule, CFG* pgramm
         return prule->prights[0];
     }
 
-    if(is_alpha(lexeme_content[0])) {
-        return pgrammar->psymbols[pgrammar->id_pos];
-    }
 
     if(is_digit(lexeme_content[0])) {
         return pgrammar->psymbols[pgrammar->numc_pos];
@@ -96,6 +93,10 @@ Symbol* getp_corresponding_symbol(char* lexeme_content, Rule* prule, CFG* pgramm
             return pgrammar->rules[k].prights[0];
         }
 
+    }
+
+    if(is_alpha(lexeme_content[0])) {
+        return pgrammar->psymbols[pgrammar->id_pos];
     }
 
 }
